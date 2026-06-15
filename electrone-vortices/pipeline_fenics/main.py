@@ -1,27 +1,25 @@
 """
-Main orchestration script for the FEniCS Hydrodynamic Pipeline.
+Main orchestration script for the dolfinx Hydrodynamic Pipeline.
 """
 import logging
 import yaml
 from pathlib import Path
-from dolfin import File
+from mpi4py import MPI
+from dolfinx import io
 
 from geometry import GrapheneDeviceMesh
 from solver import GurzhiSolver
 
-
 def setup_logging():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-
 
 def load_config(path: str) -> dict:
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
-
 def main():
     setup_logging()
-    logging.info("Initializing FEniCS Hydrodynamic Pipeline...")
+    logging.info("Initializing FEniCSx (dolfinx) Hydrodynamic Pipeline...")
 
     # 1. Konfiguracja
     cfg = load_config("../configs/fenics/gurzhi_config.yaml")
@@ -31,7 +29,7 @@ def main():
     geo_cfg = cfg["geometry"]
     phys_cfg = cfg["physics"]
 
-    # 2. Generowanie geometrii i siatki
+    # 2. Generowanie geometrii i siatki (Gmsh -> dolfinx)
     domain = GrapheneDeviceMesh(
         length=geo_cfg["channel_length"],
         width=geo_cfg["channel_width"],
@@ -44,7 +42,7 @@ def main():
 
     # 3. Rozwiązywanie układu PDE
     solver = GurzhiSolver(
-        mesh=mesh,
+        domain=mesh,
         D_nu=phys_cfg["gurzhi_length"],
         inflow_J=phys_cfg["inflow_current_density"],
         L=geo_cfg["channel_length"],
@@ -53,16 +51,20 @@ def main():
 
     J_field, phi_field = solver.solve()
 
-    # 4. Zapis wyników do VTK (dla ParaView)
+    # 4. Zapis wyników do XDMF (zoptymalizowane pod ParaView)
     logging.info(f"Exporting solutions to {out_dir}...")
-    J_field.rename("Current_Density", "vector")
-    phi_field.rename("Potential", "scalar")
+    J_field.name = "Current_Density"
+    phi_field.name = "Potential"
 
-    File(str(out_dir / "current_density.pvd")) << J_field
-    File(str(out_dir / "potential.pvd")) << phi_field
+    with io.XDMFFile(MPI.COMM_WORLD, str(out_dir / "current_density.xdmf"), "w") as xdmf:
+        xdmf.write_mesh(mesh)
+        xdmf.write_function(J_field)
 
-    logging.info("Simulation completed successfully! Open .pvd files in ParaView to see the whirlpools.")
+    with io.XDMFFile(MPI.COMM_WORLD, str(out_dir / "potential.xdmf"), "w") as xdmf:
+        xdmf.write_mesh(mesh)
+        xdmf.write_function(phi_field)
 
+    logging.info("Simulation completed! Open the .xdmf files in ParaView to visualize the Gurzhi whirlpools.")
 
 if __name__ == "__main__":
     main()
