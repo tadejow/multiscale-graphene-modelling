@@ -6,7 +6,7 @@ The architecture is strictly compliant with ISO/IEC software engineering standar
 
 ---
 
-## ??? Module Architecture
+## 1. Module Architecture
 
 ### `config_parser.py`
 **Responsibility:** Configuration Management.
@@ -46,7 +46,7 @@ Validates the surrogate model in a physical context. It defines the macroscopic 
 
 ---
 
-## ?? Execution Workflow
+## 2. Execution Workflow
 
 To ensure physical consistency and mathematical stability, the scripts must be executed in the following chronological order.
 
@@ -76,7 +76,7 @@ python generate_heatmaps.py
 
 ---
 
-## ??? System Requirements
+## 3. System Requirements
 * **Python Engine:** 3.12+
 * **Core Libraries:** `torch`, `numpy`, `scikit-learn`, `matplotlib`, `pyyaml`, `scipy`
 * **Hardware:** CUDA-compatible GPU (highly recommended for performance, though CPU fallback is fully supported).
